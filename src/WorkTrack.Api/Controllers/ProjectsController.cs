@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using WorkTrack.Application.Common.Models;
 using WorkTrack.Application.Projects;
+using WorkTrack.Api.Extensions;
 
 namespace WorkTrack.Api.Controllers;
 
@@ -23,7 +23,7 @@ public sealed class ProjectsController : ControllerBase
 		StatusCodes.Status400BadRequest)]
 	[ProducesResponseType<ProblemDetails>(
 		StatusCodes.Status409Conflict)]
-	public async Task<IActionResult> Create(
+	public async Task<ActionResult<ProjectDto>> Create(
 		CreateProjectRequest request,
 		CancellationToken cancellationToken)
 	{
@@ -33,7 +33,7 @@ public sealed class ProjectsController : ControllerBase
 
 		if (!result.IsSuccess)
 		{
-			return MapError(result.Error!);
+			return result.Error!.ToProblemDetails(HttpContext);
 		}
 
 		var project = result.Value!;
@@ -44,61 +44,85 @@ public sealed class ProjectsController : ControllerBase
 			project);
 	}
 
+	[HttpGet]
+	[ProducesResponseType<IReadOnlyCollection<ProjectDto>>(
+		StatusCodes.Status200OK)]
+	public async Task<ActionResult<IReadOnlyCollection<ProjectDto>>>
+		GetAll(CancellationToken cancellationToken)
+	{
+		var projects = await _projectService.GetAllAsync(
+			cancellationToken);
+
+		return Ok(projects);
+	}
+
 	[HttpGet("{id:guid}")]
-	[ApiExplorerSettings(IgnoreApi = true)]
-	public IActionResult GetById(Guid id)
+	[ProducesResponseType<ProjectDto>(
+		StatusCodes.Status200OK)]
+	[ProducesResponseType<ProblemDetails>(
+		StatusCodes.Status404NotFound)]
+	public async Task<ActionResult<ProjectDto>> GetById(
+		Guid id,
+		CancellationToken cancellationToken)
 	{
-		return NotFound();
+		var result = await _projectService.GetByIdAsync(
+			id,
+			cancellationToken);
+
+		if (!result.IsSuccess)
+		{
+			return result.Error!.ToProblemDetails(HttpContext);
+		}
+
+		return Ok(result.Value);
 	}
 
-	private IActionResult MapError(Error error)
+	[HttpPut("{id:guid}")]
+	[ProducesResponseType<ProjectDto>(
+		StatusCodes.Status200OK)]
+	[ProducesResponseType<ProblemDetails>(
+		StatusCodes.Status400BadRequest)]
+	[ProducesResponseType<ProblemDetails>(
+		StatusCodes.Status404NotFound)]
+	[ProducesResponseType<ProblemDetails>(
+		StatusCodes.Status409Conflict)]
+	public async Task<ActionResult<ProjectDto>> Update(
+		Guid id,
+		UpdateProjectRequest request,
+		CancellationToken cancellationToken)
 	{
-		var problemDetails = new ProblemDetails
+		var result = await _projectService.UpdateAsync(
+			id,
+			request,
+			cancellationToken);
+
+		if (!result.IsSuccess)
 		{
-			Title = GetTitle(error.Type),
-			Detail = error.Message,
-			Status = GetStatusCode(error.Type),
-			Instance = HttpContext.Request.Path
-		};
+			return result.Error!.ToProblemDetails(HttpContext);
+		}
 
-		problemDetails.Extensions["code"] = error.Code;
-
-		return StatusCode(
-			problemDetails.Status.Value,
-			problemDetails);
+		return Ok(result.Value);
 	}
 
-	private static int GetStatusCode(ErrorType errorType)
+	[HttpDelete("{id:guid}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType<ProblemDetails>(
+		StatusCodes.Status404NotFound)]
+	[ProducesResponseType<ProblemDetails>(
+		StatusCodes.Status409Conflict)]
+	public async Task<IActionResult> Delete(
+		Guid id,
+		CancellationToken cancellationToken)
 	{
-		return errorType switch
+		var result = await _projectService.DeleteAsync(
+			id,
+			cancellationToken);
+
+		if (!result.IsSuccess)
 		{
-			ErrorType.Validation =>
-				StatusCodes.Status400BadRequest,
+			return result.Error!.ToProblemDetails(HttpContext);
+		}
 
-			ErrorType.NotFound =>
-				StatusCodes.Status404NotFound,
-
-			ErrorType.Conflict =>
-				StatusCodes.Status409Conflict,
-
-			_ => StatusCodes.Status500InternalServerError
-		};
-	}
-
-	private static string GetTitle(ErrorType errorType)
-	{
-		return errorType switch
-		{
-			ErrorType.Validation =>
-				"Validation error",
-
-			ErrorType.NotFound =>
-				"Resource not found",
-
-			ErrorType.Conflict =>
-				"Resource conflict",
-
-			_ => "Unexpected error"
-		};
+		return NoContent();
 	}
 }
