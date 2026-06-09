@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using WorkTrack.Infrastructure.Persistence;
 using WorkTrack.Application.Common.Interfaces;
+using WorkTrack.Infrastructure.Authentication;
 
 namespace WorkTrack.Infrastructure;
 
@@ -23,6 +24,8 @@ public static class DependencyInjection
 		services.AddScoped<IApplicationDbContext>(
 			serviceProvider =>
 				serviceProvider.GetRequiredService<WorkTrackDbContext>());
+
+		services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 		return services;
 	}

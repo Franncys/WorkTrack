@@ -14,4 +14,6 @@ internal sealed class TestApplicationDbContext
 	}
 
 	public DbSet<Project> Projects => Set<Project>();
+
+	public DbSet<User> Users => Set<User>();
 }

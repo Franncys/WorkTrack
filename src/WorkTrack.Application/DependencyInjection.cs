@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using WorkTrack.Application.Authentication;
 using WorkTrack.Application.Projects;
 
 namespace WorkTrack.Application;
@@ -9,6 +10,10 @@ public static class DependencyInjection
 		this IServiceCollection services)
 	{
 		services.AddScoped<IProjectService, ProjectService>();
+
+		services.AddScoped<
+			IAuthenticationService,
+			AuthenticationService>();
 
 		return services;
 	}
